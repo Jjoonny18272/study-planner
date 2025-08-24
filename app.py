@@ -45,7 +45,7 @@ def save_data(filename, data):
 
 # ---------------------- LOGIN ----------------------
 if not st.session_state.logged_in:
-    st.image("https://cdn-icons-png.flaticon.com/512/4369/4369654.png", width=100)
+    st.image("https://drive.google.com/file/d/1v9d9eVrtducFnLRGnxfZXCT3NKcbscvJ/view?usp=drivesdk", width=100)
     st.markdown('<div class="title">📘 STUDY PLANNER</div>', unsafe_allow_html=True)
     st.caption("ผู้ช่วยจัดการตารางอ่านหนังสืออย่างมีระบบ ⏳📚")
 
