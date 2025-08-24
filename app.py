@@ -1,7 +1,7 @@
 import streamlit as st
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 
 def load_data(filename):
     if os.path.exists(filename):
@@ -13,105 +13,64 @@ def save_data(filename, data):
     with open(filename, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
-st.title("📚 แอพจัดตารางอ่านหนังสือ")
+st.set_page_config(page_title="Study Planner", layout="wide")
+st.title("📚 แอพตารางอ่านหนังสือแบบตารางช่อง ๆ")
 
-menu = st.sidebar.selectbox("เลือกหน้า", [
-    "ลงทะเบียนผู้ใช้",
-    "จัดตารางเวลา",
-    "ดูตารางอ่านหนังสือ"
-])
+menu = st.sidebar.selectbox("เลือกหน้า", ["เพิ่มตาราง", "ดูตาราง"])
 
-if menu == "ลงทะเบียนผู้ใช้":
-    st.header("📝 ลงทะเบียนผู้ใช้")
-    name = st.text_input("ชื่อ")
-    email = st.text_input("อีเมล")
-    level = st.selectbox("ระดับชั้น", ["ม.ต้น", "ม.ปลาย", "มหาวิทยาลัย"])
+if menu == "เพิ่มตาราง":
+    st.header("➕ เพิ่มวิชาในตาราง")
 
-    if st.button("บันทึก"):
-        if not name or not email:
-            st.error("กรุณากรอกชื่อและอีเมลให้ครบ")
-        else:
-            users = load_data("users.json")
-            users.append({"name": name, "email": email, "level": level})
-            save_data("users.json", users)
-            st.success("✅ ลงทะเบียนเรียบร้อยแล้ว!")
+    with st.form("add_schedule"):
+        subject = st.text_input("ชื่อวิชา")
+        date = st.date_input("วันที่จะอ่าน")
+        start_time = st.time_input("เวลาเริ่มต้น")
+        end_time = st.time_input("เวลาสิ้นสุด")
+        priority = st.number_input("ลำดับความสำคัญ (1 = สูงสุด)", min_value=1, max_value=5, value=3)
 
-elif menu == "จัดตารางเวลา":
-    st.header("🗓️ จัดตารางเวลาอ่านหนังสือ")
-    subjects = ["คณิต", "วิทย์", "อังกฤษ", "ประวัติศาสตร์", "อื่น ๆ"]
-    subject = st.selectbox("เลือกวิชา", subjects)
-    start_date = st.date_input("วันที่เริ่มต้นอ่าน")
-    end_date = st.date_input("วันที่สิ้นสุดอ่าน")
-    start_time = st.time_input("เวลาเริ่มอ่าน")
-    end_time = st.time_input("เวลาสิ้นสุดอ่าน")
+        submitted = st.form_submit_button("บันทึก")
 
-    if start_date > end_date:
-        st.error("❌ วันที่เริ่มต้นต้องไม่มากกว่าวันสิ้นสุด")
-    elif start_time >= end_time:
-        st.error("❌ เวลาเริ่มอ่านต้องน้อยกว่าเวลาสิ้นสุดอ่าน")
-    else:
-        if st.button("บันทึกตาราง"):
-            schedule = load_data("schedule.json")
-            schedule.append({
-                "subject": subject,
-                "start_date": start_date.strftime("%Y-%m-%d"),
-                "end_date": end_date.strftime("%Y-%m-%d"),
-                "start_time": start_time.strftime("%H:%M"),
-                "end_time": end_time.strftime("%H:%M"),
-                "done_days": []
-            })
-            save_data("schedule.json", schedule)
-            st.success("✅ บันทึกตารางเวลาเรียบร้อยแล้ว!")
+        if submitted:
+            if subject.strip() == "":
+                st.error("กรุณาใส่ชื่อวิชา")
+            elif start_time >= end_time:
+                st.error("เวลาเริ่มต้นต้องก่อนเวลาสิ้นสุด")
+            else:
+                schedule = load_data("schedule_table.json")
+                schedule.append({
+                    "subject": subject.strip(),
+                    "date": date.strftime("%Y-%m-%d"),
+                    "start": start_time.strftime("%H:%M"),
+                    "end": end_time.strftime("%H:%M"),
+                    "priority": priority
+                })
+                save_data("schedule_table.json", schedule)
+                st.success("✅ บันทึกเรียบร้อย")
 
-elif menu == "ดูตารางอ่านหนังสือ":
+elif menu == "ดูตาราง":
     st.header("📅 ตารางอ่านหนังสือ")
-    schedule = load_data("schedule.json")
+
+    schedule = load_data("schedule_table.json")
 
     if not schedule:
-        st.info("ยังไม่มีตารางอ่านหนังสือ")
+        st.info("ยังไม่มีรายการในตาราง")
     else:
-        # ขยายตารางเป็นวัน ๆ
-        expanded_schedule = []
-        for idx, item in enumerate(schedule):
-            sd = datetime.strptime(item["start_date"], "%Y-%m-%d")
-            ed = datetime.strptime(item["end_date"], "%Y-%m-%d")
-            delta_days = (ed - sd).days
-            for i in range(delta_days + 1):
-                day = sd + timedelta(days=i)
-                date_str = day.strftime("%Y-%m-%d")
-                expanded_schedule.append({
-                    "schedule_idx": idx,
-                    "subject": item["subject"],
-                    "date": date_str,
-                    "start_time": item["start_time"],
-                    "end_time": item["end_time"],
-                    "done": date_str in item["done_days"]
-                })
+        # เรียงตาม date, start time, และ priority
+        schedule.sort(key=lambda x: (x["date"], x["start"], x["priority"]))
 
-        # เรียงลำดับตาม date และเวลาเริ่ม
-        expanded_schedule.sort(key=lambda x: (x["date"], x["start_time"]))
+        # สร้าง DataFrame เพื่อแสดงเป็นตาราง
+        st.markdown("### 🔎 ตารางทั้งหมด (เรียงตามวัน/เวลา/ความสำคัญ)")
+        st.dataframe(schedule, use_container_width=True)
 
-        for i, entry in enumerate(expanded_schedule):
-            col1, col2, col3 = st.columns([6, 1, 1])
-            with col1:
-                st.write(f"📅 {entry['date']} เวลา {entry['start_time']} - {entry['end_time']} : วิชา {entry['subject']}")
-            with col2:
-                if not entry["done"]:
-                    if st.button(f"✓ อ่านเสร็จ {i}", key=f"done-{i}"):
-                        schedule = load_data("schedule.json")  # reload
-                        done_days = schedule[entry["schedule_idx"]].get("done_days", [])
-                        done_days.append(entry["date"])
-                        schedule[entry["schedule_idx"]]["done_days"] = done_days
-                        save_data("schedule.json", schedule)
-                        st.experimental_rerun()
-                else:
-                    st.markdown("✔️")
-            with col3:
-                if st.button(f"❌ ลบ {i}", key=f"del-{i}"):
-                    schedule = load_data("schedule.json")
-                    idx = entry["schedule_idx"]
-                    schedule.pop(idx)
-                    save_data("schedule.json", schedule)
-                    st.experimental_rerun()
-
+        st.markdown("### 🧩 ตารางรายวัน")
+        # แยกตามวัน
+        dates = sorted(list(set(item["date"] for item in schedule)))
+        for d in dates:
+            st.subheader(f"🗓️ วันที่ {d}")
+            daily = [item for item in schedule if item["date"] == d]
+            daily.sort(key=lambda x: (x["start"], x["priority"]))
+            for item in daily:
+                st.markdown(f"""
+                - ⏰ {item['start']} - {item['end']} | 📝 {item['subject']} | ⭐ ลำดับความสำคัญ: {item['priority']}
+                """)
 
