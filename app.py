@@ -31,7 +31,8 @@ st.session_state.setdefault("current_user", None)
 # ---------------------- FUNCTIONS ----------------------
 def get_user_filename():
     user = st.session_state.current_user
-    return f"data_{user['email'].replace('@', '_at_')}.json"
+    # เปลี่ยนอีเมลเป็นชื่อไฟล์ปลอดภัย
+    return f"data_{user['email'].replace('@', '_at_').replace('.', '_dot_')}.json"
 
 def load_data(filename):
     if os.path.exists(filename):
@@ -45,7 +46,7 @@ def save_data(filename, data):
 
 # ---------------------- LOGIN ----------------------
 if not st.session_state.logged_in:
-    st.image("https://drive.google.com/file/d/1v9d9eVrtducFnLRGnxfZXCT3NKcbscvJ/view?usp=drivesdk", width=100)
+    st.image("https://drive.google.com/uc?export=view&id=1v9d9eVrtducFnLRGnxfZXCT3NKcbscvJ", width=100)
     st.markdown('<div class="title">📘 STUDY PLANNER</div>', unsafe_allow_html=True)
     st.caption("ผู้ช่วยจัดการตารางอ่านหนังสืออย่างมีระบบ ⏳📚")
 
@@ -67,7 +68,7 @@ if not st.session_state.logged_in:
     st.stop()
 
 # ---------------------- HEADER AFTER LOGIN ----------------------
-st.image("https://cdn-icons-png.flaticon.com/512/4369/4369654.png", width=70)
+st.image("https://drive.google.com/uc?export=view&id=1v9d9eVrtducFnLRGnxfZXCT3NKcbscvJ", width=70)
 st.markdown('<div class="title">📘 STUDY PLANNER</div>', unsafe_allow_html=True)
 st.markdown(f"👋 สวัสดีคุณ **{st.session_state.current_user['name']}** — ยินดีต้อนรับเข้าสู่ระบบ")
 st.divider()
@@ -79,4 +80,65 @@ filename = get_user_filename()
 # ---------------------- LOGOUT ----------------------
 if menu == "ออกจากระบบ":
     st.session_state.logged_in = False
-    st.sessi
+    st.session_state.current_user = None
+    st.success("คุณได้ออกจากระบบแล้ว")
+    st.experimental_rerun()
+
+# ---------------------- ADD SCHEDULE ----------------------
+if menu == "เพิ่มตาราง":
+    st.subheader("➕ เพิ่มรายการอ่านหนังสือ")
+
+    with st.form("add_form"):
+        subject = st.text_input("ชื่อวิชา")
+        date = st.date_input("วันที่จะอ่าน")
+        start_time = st.time_input("เวลาเริ่มต้น")
+        end_time = st.time_input("เวลาสิ้นสุด")
+        priority = st.number_input("ลำดับความสำคัญ (1 = สูงสุด)", min_value=1, max_value=5, value=3)
+        submitted = st.form_submit_button("➕ เพิ่มลงตาราง")
+
+        if submitted:
+            if subject.strip() == "":
+                st.error("กรุณาใส่ชื่อวิชา")
+            elif start_time >= end_time:
+                st.error("เวลาเริ่มต้องน้อยกว่าสิ้นสุด")
+            else:
+                schedule = load_data(filename)
+                schedule.append({
+                    "subject": subject.strip(),
+                    "date": date.strftime("%Y-%m-%d"),
+                    "start": start_time.strftime("%H:%M"),
+                    "end": end_time.strftime("%H:%M"),
+                    "priority": priority
+                })
+                save_data(filename, schedule)
+                st.success("✅ บันทึกเรียบร้อยแล้ว!")
+
+# ---------------------- VIEW SCHEDULE ----------------------
+elif menu == "ดูตาราง":
+    st.subheader("📅 ตารางอ่านหนังสือของคุณ")
+    schedule = load_data(filename)
+
+    if not schedule:
+        st.info("ยังไม่มีรายการ")
+    else:
+        # เรียงลำดับ วัน เวลา เรียงความสำคัญ (น้อย = สำคัญก่อน)
+        schedule.sort(key=lambda x: (x["date"], x["start"], x["priority"]))
+
+        st.markdown("### 🔍 ตารางทั้งหมด (เรียงตามวัน/เวลา/ความสำคัญ)")
+        st.dataframe(schedule, use_container_width=True)
+
+        st.markdown("### 🧩 ตารางรายวัน")
+        dates = sorted(list(set(item["date"] for item in schedule)))
+        for d in dates:
+            st.subheader(f"📆 {d}")
+            daily = [item for item in schedule if item["date"] == d]
+            daily.sort(key=lambda x: (x["start"], x["priority"]))
+            for idx, item in enumerate(daily):
+                col1, col2 = st.columns([5, 1])
+                with col1:
+                    st.markdown(f"**{item['start']} - {item['end']}** | {item['subject']} | ⭐ ความสำคัญ: {item['priority']}")
+                with col2:
+                    if st.button("🗑 ลบ", key=f"del-{d}-{idx}"):
+                        schedule.remove(item)
+                        save_data(filename, schedule)
+                        st.experimental_rerun()
