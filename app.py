@@ -31,7 +31,6 @@ st.session_state.setdefault("current_user", None)
 # ---------------------- FUNCTIONS ----------------------
 def get_user_filename():
     user = st.session_state.current_user
-    # เปลี่ยนอีเมลเป็นชื่อไฟล์ปลอดภัย
     return f"data_{user['email'].replace('@', '_at_').replace('.', '_dot_')}.json"
 
 def load_data(filename):
@@ -46,7 +45,6 @@ def save_data(filename, data):
 
 # ---------------------- LOGIN ----------------------
 if not st.session_state.logged_in:
-    st.image("https://drive.google.com/uc?export=view&id=1v9d9eVrtducFnLRGnxfZXCT3NKcbscvJ", width=100)
     st.markdown('<div class="title">📘 STUDY PLANNER</div>', unsafe_allow_html=True)
     st.caption("ผู้ช่วยจัดการตารางอ่านหนังสืออย่างมีระบบ ⏳📚")
 
@@ -68,7 +66,6 @@ if not st.session_state.logged_in:
     st.stop()
 
 # ---------------------- HEADER AFTER LOGIN ----------------------
-st.image("https://drive.google.com/uc?export=view&id=1v9d9eVrtducFnLRGnxfZXCT3NKcbscvJ", width=70)
 st.markdown('<div class="title">📘 STUDY PLANNER</div>', unsafe_allow_html=True)
 st.markdown(f"👋 สวัสดีคุณ **{st.session_state.current_user['name']}** — ยินดีต้อนรับเข้าสู่ระบบ")
 st.divider()
@@ -121,7 +118,7 @@ elif menu == "ดูตาราง":
     if not schedule:
         st.info("ยังไม่มีรายการ")
     else:
-        # เรียงลำดับ วัน เวลา เรียงความสำคัญ (น้อย = สำคัญก่อน)
+        # เรียงลำดับตามวัน เวลา และความสำคัญ
         schedule.sort(key=lambda x: (x["date"], x["start"], x["priority"]))
 
         st.markdown("### 🔍 ตารางทั้งหมด (เรียงตามวัน/เวลา/ความสำคัญ)")
