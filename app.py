@@ -43,6 +43,18 @@ def save_data(filename, data):
     with open(filename, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
+def priority_icon(priority):
+    colors = {1: "🔴", 2: "🟠", 3: "🟡", 4: "🔵", 5: "🟢"}
+    return colors.get(priority, "⚪")
+
+def calc_total_hours(schedule):
+    total = 0
+    for i in schedule:
+        start = datetime.strptime(i["start"], "%H:%M")
+        end = datetime.strptime(i["end"], "%H:%M")
+        total += (end - start).seconds / 3600
+    return total
+
 # ---------------------- LOGIN ----------------------
 if not st.session_state.logged_in:
     st.markdown('<div class="title">📘 STUDY PLANNER</div>', unsafe_allow_html=True)
@@ -62,7 +74,6 @@ if not st.session_state.logged_in:
                     "name": name.strip()
                 }
                 st.success("✅ เข้าสู่ระบบเรียบร้อย")
-                st.experimental_rerun()
     st.stop()
 
 # ---------------------- HEADER AFTER LOGIN ----------------------
@@ -79,7 +90,7 @@ if menu == "ออกจากระบบ":
     st.session_state.logged_in = False
     st.session_state.current_user = None
     st.success("คุณได้ออกจากระบบแล้ว")
-    st.experimental_rerun()
+    st.stop()
 
 # ---------------------- ADD SCHEDULE ----------------------
 if menu == "เพิ่มตาราง":
@@ -121,6 +132,10 @@ elif menu == "ดูตาราง":
         # เรียงลำดับตามวัน เวลา และความสำคัญ
         schedule.sort(key=lambda x: (x["date"], x["start"], x["priority"]))
 
+        # รวมเวลาทั้งหมด
+        total_hours = calc_total_hours(schedule)
+        st.info(f"⏳ เวลารวมทั้งหมด: {total_hours:.1f} ชั่วโมง")
+
         st.markdown("### 🔍 ตารางทั้งหมด (เรียงตามวัน/เวลา/ความสำคัญ)")
         st.dataframe(schedule, use_container_width=True)
 
@@ -133,7 +148,12 @@ elif menu == "ดูตาราง":
             for idx, item in enumerate(daily):
                 col1, col2 = st.columns([5, 1])
                 with col1:
-                    st.markdown(f"**{item['start']} - {item['end']}** | {item['subject']} | ⭐ ความสำคัญ: {item['priority']}")
+                    st.markdown(
+                        f"{priority_icon(item['priority'])} "
+                        f"**{item['start']} - {item['end']}** | "
+                        f"{item['subject']} | "
+                        f"⭐ ความสำคัญ: {item['priority']}"
+                    )
                 with col2:
                     if st.button("🗑 ลบ", key=f"del-{d}-{idx}"):
                         schedule.remove(item)
