@@ -329,7 +329,7 @@ elif menu == "เพิ่มตารางอัตโนมัติ":
                 auto_items = auto_schedule_subject(subject.strip(), exam_date, hours_per_day)
                 
                 if not auto_items:
-                    st.error("ไม่สามารถสร้างตารางได้ เนื่องจากเวลาทับซ้อนหรือวันสอบใกล้เกินไป")
+                    st.error("ไม่สามารถสร้างตารางได้ เนื่องจากเวลาอ่านต่อวันมากเกินไปหรือวันสอบใกล้กันเกินไป")
                 else:
                     schedule.extend(auto_items)
                     save_data(filename, schedule)
