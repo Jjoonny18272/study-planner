@@ -1,7 +1,7 @@
 import streamlit as st
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # ---------------------- CONFIG ----------------------
 st.set_page_config(
@@ -55,15 +55,25 @@ def calc_total_hours(schedule):
         total += (end - start).seconds / 3600
     return total
 
+def generate_date_range(start_date, end_date):
+    """สร้างรายการวันที่ตั้งแต่วันเริ่มต้นถึงวันสิ้นสุด"""
+    dates = []
+    current_date = start_date
+    while current_date <= end_date:
+        dates.append(current_date)
+        current_date += timedelta(days=1)
+    return dates
+
 # ---------------------- LOGIN ----------------------
 if not st.session_state.logged_in:
     st.markdown('<div class="title">📘 STUDY PLANNER</div>', unsafe_allow_html=True)
     st.caption("ผู้ช่วยจัดการตารางอ่านหนังสืออย่างมีระบบ ⏳📚")
 
-    with st.form("login_form"):
+    with st.form("login_form", clear_on_submit=True):
         email = st.text_input("อีเมล")
         name = st.text_input("ชื่อ")
         submitted = st.form_submit_button("เข้าสู่ระบบ")
+        
         if submitted:
             if email.strip() == "" or name.strip() == "":
                 st.error("กรุณากรอกชื่อและอีเมล")
@@ -74,6 +84,9 @@ if not st.session_state.logged_in:
                     "name": name.strip()
                 }
                 st.success("✅ เข้าสู่ระบบเรียบร้อย")
+                st.rerun()  # ใช้ st.rerun() แทน st.stop()
+
+if not st.session_state.logged_in:
     st.stop()
 
 # ---------------------- HEADER AFTER LOGIN ----------------------
@@ -90,7 +103,7 @@ if menu == "ออกจากระบบ":
     st.session_state.logged_in = False
     st.session_state.current_user = None
     st.success("คุณได้ออกจากระบบแล้ว")
-    st.stop()
+    st.rerun()
 
 # ---------------------- ADD SCHEDULE ----------------------
 if menu == "เพิ่มตาราง":
@@ -98,7 +111,14 @@ if menu == "เพิ่มตาราง":
 
     with st.form("add_form"):
         subject = st.text_input("ชื่อวิชา")
-        date = st.date_input("วันที่จะอ่าน")
+        
+        # เพิ่มการเลือกช่วงวันที่
+        col1, col2 = st.columns(2)
+        with col1:
+            start_date = st.date_input("วันที่เริ่มต้น")
+        with col2:
+            end_date = st.date_input("วันที่สิ้นสุด")
+            
         start_time = st.time_input("เวลาเริ่มต้น")
         end_time = st.time_input("เวลาสิ้นสุด")
         priority = st.number_input("ลำดับความสำคัญ (1 = สูงสุด)", min_value=1, max_value=5, value=3)
@@ -109,17 +129,27 @@ if menu == "เพิ่มตาราง":
                 st.error("กรุณาใส่ชื่อวิชา")
             elif start_time >= end_time:
                 st.error("เวลาเริ่มต้องน้อยกว่าสิ้นสุด")
+            elif start_date > end_date:
+                st.error("วันที่เริ่มต้นต้องไม่เกินวันที่สิ้นสุด")
             else:
                 schedule = load_data(filename)
-                schedule.append({
-                    "subject": subject.strip(),
-                    "date": date.strftime("%Y-%m-%d"),
-                    "start": start_time.strftime("%H:%M"),
-                    "end": end_time.strftime("%H:%M"),
-                    "priority": priority
-                })
+                
+                # สร้างรายการตารางสำหรับทุกวันในช่วงที่เลือก
+                date_range = generate_date_range(start_date, end_date)
+                added_count = 0
+                
+                for single_date in date_range:
+                    schedule.append({
+                        "subject": subject.strip(),
+                        "date": single_date.strftime("%Y-%m-%d"),
+                        "start": start_time.strftime("%H:%M"),
+                        "end": end_time.strftime("%H:%M"),
+                        "priority": priority
+                    })
+                    added_count += 1
+                
                 save_data(filename, schedule)
-                st.success("✅ บันทึกเรียบร้อยแล้ว!")
+                st.success(f"✅ เพิ่มตารางเรียบร้อยแล้ว! ({added_count} วัน)")
 
 # ---------------------- VIEW SCHEDULE ----------------------
 elif menu == "ดูตาราง":
@@ -158,4 +188,4 @@ elif menu == "ดูตาราง":
                     if st.button("🗑 ลบ", key=f"del-{d}-{idx}"):
                         schedule.remove(item)
                         save_data(filename, schedule)
-                        st.experimental_rerun()
+                        st.rerun()
